@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Environment variables
+.env
+
+# Exported data and checkpoints
+users.json
+channels.json
+exported_channels.json
+export_config.json
+avatars/
+files/
+
+# Channel export directories
+*/messages.json
+*/files/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
