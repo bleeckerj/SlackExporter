@@ -188,6 +188,15 @@ def draw_qr_code(c, data, x, y, size):
     c.drawImage(ImageReader(img_buffer), x, y - size, size, size)
 
 
+def draw_page_number(c, page_num, page_width, margin_bottom, normal_font_name, font_size):
+    c.setFont(normal_font_name, font_size)
+    page_num_text = f"{page_num}"
+    text_width = c.stringWidth(page_num_text, normal_font_name, font_size)
+    x = (page_width - text_width) / 2
+    y = margin_bottom / 2
+    c.drawString(x, y, page_num_text)
+
+
 def main(messages_json_path, page_size_name='letter', normal_font_path=None, bold_font_path=None, margin_top=inch, margin_bottom=inch, margin_left=inch, margin_right=inch):
     page_size = PAGE_SIZES.get(page_size_name.lower(), letter)
     PAGE_WIDTH, PAGE_HEIGHT = page_size
@@ -214,6 +223,7 @@ def main(messages_json_path, page_size_name='letter', normal_font_path=None, bol
     parent_dir = os.path.basename(os.path.dirname(os.path.abspath(messages_json_path)))
     output_pdf_name = f'slack_transcript_{parent_dir}_{page_size_name}.pdf'
 
+    page_num = 1
     c = canvas.Canvas(output_pdf_name, pagesize=page_size)
     y = PAGE_HEIGHT - margin_top
     print(f'Generating PDF transcript: {output_pdf_name}')
@@ -297,10 +307,13 @@ def main(messages_json_path, page_size_name='letter', normal_font_path=None, bol
 
         # Check for page break
         if y < margin_bottom + AVATAR_SIZE:
+            draw_page_number(c, page_num, PAGE_WIDTH, margin_bottom, normal_font_name, FONT_SIZE)
             c.showPage()
+            page_num += 1
             y = PAGE_HEIGHT - margin_top
 
     # Draw user key page
+    draw_page_number(c, page_num, PAGE_WIDTH, margin_bottom, normal_font_name, FONT_SIZE)
     draw_user_key_page(c, users, avatars_dir, PAGE_WIDTH, PAGE_HEIGHT, margin_left, AVATAR_SIZE, LINE_HEIGHT, normal_font_name)
 
     c.save()
