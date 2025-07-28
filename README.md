@@ -111,6 +111,26 @@ Prints all channels and indicates whether the bot is a member of each.
 python list_channels_metadata.py
 ```
 
+## Simple Slack PDF Transcript
+
+This workspace includes `simple_slack_pdf_maker.py`, a script to convert Slack JSON exports into printable PDF transcripts with user avatars, timestamps, and message text.
+
+### Features
+
+- Supports ANSI and ISO A series page sizes.
+- Custom fonts and page margins.
+- Includes a user key page with avatars and user info.
+
+### Usage
+
+Run with:
+
+```bash
+python3 simple_slack_pdf_maker.py path/to/messages.json --page-size a4 --normal-font path/to/normal.ttf --bold-font path/to/bold.ttf --margin-top 1 --margin-bottom 1 --margin-left 1 --margin-right 1
+```
+
+The output PDF is named based on the channel folder and page size.
+
 ## Integration with pdf-to-grid-of-images
 
 The [pdf-to-grid-of-images](https://github.com/bleeckerj/pdf-to-grid-of-images) repository can be used to convert the PDFs, images, and movie files found in each channel’s `files` directory into pages of visual content for book assembly or further processing.  
