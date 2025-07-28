@@ -29,6 +29,44 @@ A robust toolkit for exporting Slack workspace data, including messages, files, 
    SLACK_BOT_TOKEN=xoxb-...
    ```
 
+## How to Obtain Your Slack Bot OAuth Token
+
+1. **Create a Slack App:**
+   - Go to [https://api.slack.com/apps](https://api.slack.com/apps) and click "Create New App".
+   - Choose "From scratch" and give your app a name and select your workspace.
+
+2. **Add OAuth Scopes:**
+   - In your app settings, go to "OAuth & Permissions".
+   - Under "Scopes", add the following Bot Token Scopes:
+     - `channels:history`
+     - `groups:history`
+     - `im:history`
+     - `mpim:history`
+     - `channels:read`
+     - `groups:read`
+     - `users:read`
+     - `users:read.email`
+     - `team:read`
+     - `files:read`
+
+3. **Install the App to Your Workspace:**
+   - In the "OAuth & Permissions" section, click "Install App to Workspace".
+   - Authorize the app when prompted.
+
+4. **Copy the Bot User OAuth Token:**
+   - After installation, you’ll see a "Bot User OAuth Token" (it starts with `xoxb-`).
+   - Copy this token.
+
+5. **Add the Token to Your `.env` File:**
+   - In your project directory, create a `.env` file (if it doesn’t exist).
+   - Add the following line:
+     ```
+     SLACK_BOT_TOKEN=xoxb-your-token-here
+     ```
+
+**Note:**  
+The bot must be invited to each channel (public or private) you wish to export from. Use `/invite @your-bot-name` in Slack to add it to channels
+
 ## Scripts
 
 ### slack_exporter.py
@@ -72,6 +110,16 @@ Prints all channels and indicates whether the bot is a member of each.
 ```bash
 python list_channels_metadata.py
 ```
+
+## Integration with pdf-to-grid-of-images
+
+The [pdf-to-grid-of-images](https://github.com/bleeckerj/pdf-to-grid-of-images) repository can be used to convert the PDFs, images, and movie files found in each channel’s `files` directory into pages of visual content for book assembly or further processing.  
+That project includes two Python scripts:
+
+- `directory_to_images.py`: Converts all pdfs, images and movies in a directory into page-ready image assets.
+- `pdf_to_images.py`: Converts PDF files into images for use as pages.
+
+Use these tools to process the exported files from Slack channels and generate visual assets for your book or archive.
 
 ## Notes
 - The bot must be a member of private channels to export their messages.
