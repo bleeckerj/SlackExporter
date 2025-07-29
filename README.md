@@ -115,6 +115,8 @@ python list_channels_metadata.py
 
 This workspace includes `simple_slack_pdf_maker.py`, a script to convert Slack JSON exports into printable PDF transcripts with user avatars, timestamps, and message text.
 
+This script makes the books (almost — no covers, no representation of the visual assets). To do the visual assets you'll want to look at the [pdf-to-grid-of-images](https://github.com/bleeckerj/pdf-to-grid-of-images) repository. To do the covers — well...at the moment, you'll want to do that by hand!
+
 ### Features
 
 - Supports ANSI and ISO A series page sizes.
@@ -138,8 +140,9 @@ That project includes two Python scripts:
 
 - `directory_to_images.py`: Converts all pdfs, images and movies in a directory into page-ready image assets.
 - `pdf_to_images.py`: Converts PDF files into images for use as pages.
+- `process_all_slack_dirs.py`: Creates page images and combined PDFs along with flipbook pages representing video files, user indices, etc., for all the Slack content directories.
 
-Use these tools to process the exported files from Slack channels and generate visual assets for your book or archive.
+Use these tools to process the exported files from Slack channels and generate pages full of message transcripts and visual assets for your book or archive.
 
 ## Notes
 - The bot must be a member of private channels to export their messages.
