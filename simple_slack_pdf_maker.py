@@ -30,9 +30,9 @@ users_file = 'users.json'
 avatars_dir = 'avatars_40x40'
 
 MARGIN = inch
-AVATAR_SIZE = 0.35 * inch
-LINE_HEIGHT = 10
-FONT_SIZE = 9
+AVATAR_SIZE = 0.4 * inch
+LINE_HEIGHT = 8
+FONT_SIZE = 7
 
 def load_json(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -188,13 +188,74 @@ def draw_qr_code(c, data, x, y, size):
     c.drawImage(ImageReader(img_buffer), x, y - size, size, size)
 
 
-def draw_page_number(c, page_num, page_width, margin_bottom, normal_font_name, font_size):
+def draw_file_index_page(c, files, page_width, page_height, margin_left, margin_bottom, line_height, normal_font_name="Helvetica"):
+    c.showPage()
+    c.setFont(normal_font_name, FONT_SIZE + 2)
+    margin_top = margin_bottom  # Use same margin for top as bottom for consistency
+    c.drawString(margin_left, page_height - margin_top, "File Index")
+
+    y = page_height - margin_top - 30
+    x_left = margin_left
+    x_right = margin_left + (page_width - 2 * margin_left) / 2
+    c.setFont(normal_font_name, FONT_SIZE)
+
+    col = 0
+    file_index = 0
+    
+    while file_index < len(files):
+        # Check if we need a new page
+        if y < margin_bottom + line_height:
+            c.showPage()
+            c.setFont(normal_font_name, FONT_SIZE + 2)
+            c.drawString(margin_left, page_height - margin_top, "File Index (continued)")
+            y = page_height - margin_top - 30
+            c.setFont(normal_font_name, FONT_SIZE - 2)
+            col = 0
+        
+        x = x_left if col == 0 else x_right
+        c.drawString(x, y, files[file_index])
+        file_index += 1
+        
+        if col == 1:
+            y -= line_height
+
+        col = (col + 1) % 2
+    
+    # If last row was single column, add some space
+    if col == 1:
+        y -= line_height
+
+
+def draw_page_number_and_channel(c, page_num, page_width, margin_bottom, normal_font_name, font_size, channel_name, page_height, margin_top):
+    # Draw page number at bottom center
     c.setFont(normal_font_name, font_size)
     page_num_text = f"{page_num}"
     text_width = c.stringWidth(page_num_text, normal_font_name, font_size)
     x = (page_width - text_width) / 2
-    y = margin_bottom / 2
+    y = margin_bottom + font_size * 1.5
     c.drawString(x, y, page_num_text)
+    # Draw channel name at top center
+    channel_text_width = c.stringWidth(channel_name, normal_font_name, font_size + 2)
+    channel_x = (page_width - channel_text_width) / 2
+    channel_y = page_height - margin_top + 1.5 * font_size
+    c.setFont(normal_font_name, font_size + 2)
+    c.drawString(channel_x, channel_y, channel_name)
+
+
+def estimate_wrapped_text_height(c, text, max_width, line_height, font_name, font_size):
+    words = text.split(' ')
+    line = ''
+    lines = 0
+    for word in words:
+        test_line = line + word + ' '
+        if c.stringWidth(test_line, font_name, font_size) < max_width:
+            line = test_line
+        else:
+            lines += 1
+            line = word + ' '
+    if line:
+        lines += 1
+    return lines * line_height
 
 
 def main(messages_json_path, page_size_name='letter', normal_font_path=None, bold_font_path=None, margin_top=inch, margin_bottom=inch, margin_left=inch, margin_right=inch):
@@ -219,9 +280,10 @@ def main(messages_json_path, page_size_name='letter', normal_font_path=None, bol
 
     user_map = {user['id']: user['name'] for user in users}
 
-    # Use parent directory name of messages.json for output PDF name
+    # Use parent directory name of messages.json for output PDF name and channel name
     parent_dir = os.path.basename(os.path.dirname(os.path.abspath(messages_json_path)))
     output_pdf_name = f'slack_transcript_{parent_dir}_{page_size_name}.pdf'
+    channel_name = parent_dir
 
     page_num = 1
     c = canvas.Canvas(output_pdf_name, pagesize=page_size)
@@ -257,6 +319,23 @@ def main(messages_json_path, page_size_name='letter', normal_font_path=None, bol
         text = replace_urls_in_text(text)
         print(f"[DEBUG] After URL replacement: {text}")
 
+        # Estimate message height
+        text_x = margin_left + AVATAR_SIZE + 5
+        max_text_width = PAGE_WIDTH - margin_right - text_x
+        message_height = 25  # header and spacing
+        if text:
+            message_height += estimate_wrapped_text_height(c, text, max_text_width, LINE_HEIGHT, normal_font_name, FONT_SIZE)
+        if file_names:
+            message_height += len(file_names) * LINE_HEIGHT
+        message_height += 10  # bottom spacing
+
+        # Check for page break BEFORE drawing
+        if y - message_height < margin_bottom + FONT_SIZE * 2:
+            draw_page_number_and_channel(c, page_num, PAGE_WIDTH, margin_bottom, normal_font_name, FONT_SIZE, channel_name, PAGE_HEIGHT, margin_top)
+            c.showPage()
+            page_num += 1
+            y = PAGE_HEIGHT - margin_top
+
         # Draw avatar
         avatar_path = None
         for ext in ['.jpg', '.jpeg', '.png']:
@@ -266,23 +345,21 @@ def main(messages_json_path, page_size_name='letter', normal_font_path=None, bol
                 break
         if avatar_path:
             try:
-                c.drawImage(avatar_path, margin_left, y - AVATAR_SIZE, AVATAR_SIZE, AVATAR_SIZE, mask='auto')
+                c.drawImage(avatar_path, margin_left, y - AVATAR_SIZE - 3, AVATAR_SIZE, AVATAR_SIZE, mask='auto')  # -10 moves it further down
             except Exception:
                 c.setFillColorRGB(0, 0, 0)
-                c.rect(margin_left, y - AVATAR_SIZE, AVATAR_SIZE, AVATAR_SIZE, fill=1)
+                c.rect(margin_left, y - AVATAR_SIZE - 8, AVATAR_SIZE, AVATAR_SIZE, fill=1)
         else:
             c.setFillColorRGB(0, 0, 0)
-            c.rect(margin_left, y - AVATAR_SIZE, AVATAR_SIZE, AVATAR_SIZE, fill=1)
+            c.rect(margin_left, y - AVATAR_SIZE - 8, AVATAR_SIZE, AVATAR_SIZE, fill=1)
 
         # Draw username and timestamp
         c.setFont(bold_font_name, FONT_SIZE)
-        c.drawString(margin_left + AVATAR_SIZE + 5, y - 10, f'{username} [{ts_human}]')
+        c.drawString(margin_left + AVATAR_SIZE + 5, y - 8, f'{username} [{ts_human}]')
 
         # Draw message text
         c.setFont(normal_font_name, FONT_SIZE)
-        text_x = margin_left + AVATAR_SIZE + 5
-        text_y = y - 25
-        max_text_width = PAGE_WIDTH - margin_right - text_x
+        text_y = y - 2.8 * FONT_SIZE
         if text:
             text_y = draw_wrapped_text(c, text, text_x, text_y, max_text_width, LINE_HEIGHT, font_name=normal_font_name, font_size=FONT_SIZE)
         # Draw file references (never wrapped or altered)
@@ -305,15 +382,29 @@ def main(messages_json_path, page_size_name='letter', normal_font_path=None, bol
         # Update y position for next message
         y = text_y - 10
 
-        # Check for page break
-        if y < margin_bottom + AVATAR_SIZE:
-            draw_page_number(c, page_num, PAGE_WIDTH, margin_bottom, normal_font_name, FONT_SIZE)
-            c.showPage()
-            page_num += 1
-            y = PAGE_HEIGHT - margin_top
-
+    # Draw file index page
+    draw_page_number_and_channel(c, page_num, PAGE_WIDTH, margin_bottom, normal_font_name, FONT_SIZE, channel_name, PAGE_HEIGHT, margin_top)
+    
+    # Collect all file names from messages
+    all_files = []
+    for msg in messages:
+        if msg.get('type') == 'message' and msg.get('files'):
+            for f in msg.get('files', []):
+                if isinstance(f, dict) and f.get('name'):
+                    file_name = f.get('name', '').encode('ascii', errors='ignore').decode('ascii')
+                    if file_name and file_name not in all_files:
+                        all_files.append(file_name)
+    
+    # Sort files alphabetically
+    all_files.sort()
+    
+    # Draw the file index page
+    if all_files:
+        draw_file_index_page(c, all_files, PAGE_WIDTH, PAGE_HEIGHT, margin_left, margin_bottom, LINE_HEIGHT, normal_font_name)
+        page_num += 1
+    
     # Draw user key page
-    draw_page_number(c, page_num, PAGE_WIDTH, margin_bottom, normal_font_name, FONT_SIZE)
+    draw_page_number_and_channel(c, page_num, PAGE_WIDTH, margin_bottom, normal_font_name, FONT_SIZE, channel_name, PAGE_HEIGHT, margin_top)
     draw_user_key_page(c, users, avatars_dir, PAGE_WIDTH, PAGE_HEIGHT, margin_left, AVATAR_SIZE, LINE_HEIGHT, normal_font_name)
 
     c.save()
