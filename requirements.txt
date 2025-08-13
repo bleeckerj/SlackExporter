@@ -1,2 +1,10 @@
-slack_sdk
-python-dotenv
+certifi==2025.6.15
+charset-normalizer==3.4.2
+idna==3.10
+pillow==11.3.0
+python-dotenv==1.1.0
+qrcode==8.2
+reportlab==4.4.3
+requests==2.32.4
+slack_sdk==3.35.0
+urllib3==2.5.0

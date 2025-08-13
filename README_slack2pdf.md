@@ -1,4 +1,4 @@
-# simple_slack_pdf.py
+# slack2pdf.py
 
 This script converts Slack exported JSON messages into a simple printable PDF transcript.
 
@@ -15,13 +15,14 @@ This script converts Slack exported JSON messages into a simple printable PDF tr
 Run the script with:
 
 ```bash
-python3 simple_slack_pdf.py path/to/messages.json --page-size a4 --normal-font path/to/normal.ttf --bold-font path/to/bold.ttf --margin-top 1 --margin-bottom 1 --margin-left 1 --margin-right 1
+python3 slack2pdf.py path/to/messages.json --page-size a4 --normal-font path/to/normal.ttf --bold-font path/to/bold.ttf --margin-top 1 --margin-bottom 1 --margin-left 1 --margin-right 1 --output-dir path/to/output
 ```
 
 - `messages.json` path is positional and optional (defaults to `omata-developers/messages.json`).
 - `--page-size` selects the PDF page size (default `a4`).
 - `--normal-font` and `--bold-font` specify TTF font files for text.
 - Margins are specified in inches.
+- `--output-dir` specifies the directory to save the output PDF (optional).
 
 The output PDF is named `slack_transcript_<channel>_<pagesize>.pdf` where `<channel>` is the parent directory name of the messages JSON.
 
@@ -36,3 +37,8 @@ Install dependencies with:
 ```bash
 pip install reportlab Pillow
 ```
+
+## License
+Creative Commons Attribution-NonCommercial (CC BY-NC)
+
+This project is licensed under the Creative Commons Attribution-NonCommercial (CC BY-NC) license. You are free to use, share, and adapt the software, provided you give appropriate credit and do not use it for commercial purposes. For more details, see https://creativecommons.org/licenses/by-nc/4.0/

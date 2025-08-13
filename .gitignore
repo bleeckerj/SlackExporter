@@ -4,7 +4,7 @@ __pycache__/
 *.pyo
 *.pyd
 *.so
-
+.env
 slack_transcript*
 
 # Virtual environment

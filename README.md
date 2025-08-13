@@ -10,6 +10,19 @@ A robust toolkit for exporting Slack workspace data, including messages, files, 
 - Selective channel export via configuration file
 - Robust handling of Slack API rate limits
 
+## Consists of the following tools:
+
+- slack_exporter.py — Export messages and files from channels, save user metadata and avatars, handle rate limits.
+- export_users_metadata.py — Export all user metadata and download user avatars.
+- export_channels_metadata.py — Export all channel metadata (name, ID, is_member).
+- list_channels_metadata.py — Print all channels and indicate bot membership.
+- slack2pdf.py — Convert Slack JSON exports into printable PDF transcripts with avatars and message text. [See detailed usage and options for slack2pdf.py in README_slack2pdf.md.](README_slack2pdf.md)
+- resize_avatars.py — Resize avatars to 168x168 at 300 DPI for PDF transcripts.
+- inspect_messages_json.py — Report total messages and earliest/latest timestamps for a messages.json.
+- sample_messages_json.py — Print first/last N sample messages from a messages.json.
+- count_messages_with_files.py — Count messages that include file attachments.
+- run-on-all.sh — Batch-run the PDF transcript generator for every messages.json.
+
 ## Setup
 1. **Clone the repository and navigate to the directory.**
 2. **Create and activate a Python virtual environment:**
@@ -113,7 +126,7 @@ python list_channels_metadata.py
 
 ## Simple Slack PDF Transcript
 
-This workspace includes `simple_slack_pdf_maker.py`, a script to convert Slack JSON exports into printable PDF transcripts with user avatars, timestamps, and message text.
+This workspace includes `slack2pdf.py`, a script to convert the Slack JSON exports that the above tools produce into printable PDF transcripts with user avatars, timestamps, and message text.
 
 This script makes the books (almost — no covers, no representation of the visual assets). To do the visual assets you'll want to look at the [pdf-to-grid-of-images](https://github.com/bleeckerj/pdf-to-grid-of-images) repository. To do the covers — well...at the moment, you'll want to do that by hand!
 
@@ -128,7 +141,7 @@ This script makes the books (almost — no covers, no representation of the visu
 Run with:
 
 ```bash
-python3 simple_slack_pdf_maker.py path/to/messages.json --page-size a4 --normal-font path/to/normal.ttf --bold-font path/to/bold.ttf --margin-top 1 --margin-bottom 1 --margin-left 1 --margin-right 1
+python3 slack2pdf.py path/to/messages.json --page-size a4 --normal-font path/to/normal.ttf --bold-font path/to/bold.ttf --margin-top 1 --margin-bottom 1 --margin-left 1 --margin-right 1
 ```
 
 The output PDF is named based on the channel folder and page size.
