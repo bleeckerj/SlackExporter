@@ -170,18 +170,18 @@ def save_channel_messages_batch(channel_name, new_batch):
         text = msg.get('text', '')
         words = ' '.join(text.split()[:10])
         if msg['ts'] in all_msgs:
-            print(f"DEDUPLICATED: {dt}: {words}")
+            logging.info(f"DEDUPLICATED: {dt}: {words}")
         else:
-            print(f"ADDED:        {dt}: {words}")
+            logging.info(f"ADDED:        {dt}: {words}")
         all_msgs[msg['ts']] = msg
     # Sort chronologically
     merged_sorted = [all_msgs[ts] for ts in sorted(all_msgs, key=lambda t: float(t))]
     if not DRY_RUN:
         with open(path, "w") as f:
             json.dump(merged_sorted, f, indent=2)
-        print(f"Saved {len(merged_sorted)} total messages to {path}")
+        logging.info(f"Saved {len(merged_sorted)} total messages to {path}")
     else:
-        print(f"[DRY RUN] Would save {len(merged_sorted)} total messages to {path}")
+        logging.info(f"[DRY RUN] Would save {len(merged_sorted)} total messages to {path}")
     return merged_sorted
 
 def fetch_all_messages(channel_id, channel_name, latest_saved_ts=None):
@@ -344,7 +344,8 @@ def download_file(file_info, token, output_dir):
                     actual_ts = f"{int(now)}.000000"
 
                 entry = {
-                    "filepath": os.path.relpath(final_path),
+                    # make filepath relative to the configured ROOT_DIR (not CWD)
+                    "filepath": os.path.relpath(final_path, start=ROOT_DIR),
                     "raw_ts": raw_ts,
                     "actual_ts": actual_ts,
                     "permalink": file_info.get('permalink'),
@@ -359,13 +360,66 @@ def download_file(file_info, token, output_dir):
 
             return final_path
         else:
-            print(f"Failed to download file {orig_name}: HTTP {resp.status_code}")
+            logging.warning(f"Failed to download file {orig_name}: HTTP {resp.status_code}")
             return None
     except Exception as e:
-        print(f"Error downloading file {orig_name}: {e}")
+        logging.error(f"Error downloading file {orig_name}: {e}")
+        try:
+            errors_path = os.path.join(os.path.dirname(output_dir), "errors.json")
+            errors = []
+            if os.path.exists(errors_path):
+                with open(errors_path, "r") as ef:
+                    try:
+                        errors = json.load(ef)
+                        if not isinstance(errors, list):
+                            errors = []
+                    except Exception:
+                        errors = []
+            # determine timestamps
+            if file_info.get('created') is not None:
+                raw_ts = str(int(file_info.get('created')))
+                actual_ts = f"{int(file_info.get('created'))}.000000"
+            elif file_info.get('timestamp') is not None:
+                actual_ts = str(file_info.get('timestamp'))
+                try:
+                    raw_ts = str(int(float(actual_ts)))
+                except Exception:
+                    raw_ts = actual_ts.split('.')[0]
+            else:
+                now = time.time()
+                raw_ts = str(int(now))
+                actual_ts = f"{int(now)}.000000"
+            # intended path if available
+            intended = None
+            if 'final_path' in locals():
+                intended = os.path.relpath(final_path)
+            elif 'candidate_path' in locals():
+                intended = os.path.relpath(candidate_path)
+            entry = {
+                "name": orig_name,
+                "id": file_info.get('id'),
+                "url": url,
+                "intended_path": intended,
+                "raw_ts": raw_ts,
+                "actual_ts": actual_ts,
+                "error": str(e),
+                "attempted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            }
+            errors.append(entry)
+            with open(errors_path, "w") as ef:
+                json.dump(errors, ef, indent=2)
+        except Exception:
+            pass
         return None
 
-def load_export_config(config_file="export_config.json"):
+def load_export_config(config_file=None):
+    """Load export_config.json. If config_file is not absolute, resolve under ROOT_DIR."""
+    if config_file is None:
+        config_file = out_path("export_config.json")
+    else:
+        # if a relative path was provided, resolve under ROOT_DIR
+        if not os.path.isabs(config_file):
+            config_file = out_path(config_file)
     if os.path.exists(config_file):
         with open(config_file, "r") as f:
             data = json.load(f)
@@ -377,19 +431,19 @@ def fetch_messages_newer(channel_id, channel_name, latest_saved_ts):
     cursor = None
     unique_timestamps = set()
     while True:
-        print(f"Fetching NEWER messages for {channel_name} with ts > {latest_saved_ts}")
+        logging.info(f"Fetching NEWER messages for {channel_name} with ts > {latest_saved_ts}")
         start_time = time.time()
         response = robust_api_call(client.conversations_history, channel=channel_id, limit=1000, cursor=cursor, oldest=latest_saved_ts)
         if not response:
             break
         batch = response['messages']
         if not batch:
-            print(f"No more newer messages in batch for {channel_name}.")
+            logging.info(f"No more newer messages in batch for {channel_name}.")
             break
         batch_ts = [msg['ts'] for msg in batch]
         unique_timestamps.update(batch_ts)
-        print(f"Fetched {len(batch)} newer messages for {channel_name}. Batch ts range: {batch_ts[-1]} to {batch_ts[0]}")
-        print(f"Unique newer timestamps so far: {len(unique_timestamps)}")
+        logging.info(f"Fetched {len(batch)} newer messages for {channel_name}. Batch ts range: {batch_ts[-1]} to {batch_ts[0]}")
+        logging.info(f"Unique newer timestamps so far: {len(unique_timestamps)}")
         messages += batch
         cursor = response.get('response_metadata', {}).get('next_cursor')
         elapsed = time.time() - start_time
@@ -404,19 +458,19 @@ def fetch_messages_older(channel_id, channel_name, oldest_saved_ts):
     cursor = None
     unique_timestamps = set()
     while True:
-        print(f"Fetching OLDER messages for {channel_name} with ts < {oldest_saved_ts}")
+        logging.info(f"Fetching OLDER messages for {channel_name} with ts < {oldest_saved_ts}")
         start_time = time.time()
         response = robust_api_call(client.conversations_history, channel=channel_id, limit=1000, cursor=cursor, latest=oldest_saved_ts)
         if not response:
             break
         batch = response['messages']
         if not batch:
-            print(f"No more older messages in batch for {channel_name}.")
+            logging.info(f"No more older messages in batch for {channel_name}.")
             break
         batch_ts = [msg['ts'] for msg in batch]
         unique_timestamps.update(batch_ts)
-        print(f"Fetched {len(batch)} older messages for {channel_name}. Batch ts range: {batch_ts[-1]} to {batch_ts[0]}")
-        print(f"Unique older timestamps so far: {len(unique_timestamps)}")
+        logging.info(f"Fetched {len(batch)} older messages for {channel_name}. Batch ts range: {batch_ts[-1]} to {batch_ts[0]}")
+        logging.info(f"Unique older timestamps so far: {len(unique_timestamps)}")
         messages += batch
         cursor = response.get('response_metadata', {}).get('next_cursor')
         elapsed = time.time() - start_time
@@ -437,9 +491,9 @@ def save_channel_messages_two_way(channel_name, older_messages, existing_message
     if not DRY_RUN:
         with open(path, "w") as f:
             json.dump(list(all_messages), f, indent=2)
-        print(f"Saved {len(all_messages)} total messages to {path}")
+        logging.info(f"Saved {len(all_messages)} total messages to {path}")
     else:
-        print(f"[DRY RUN] Would save {len(all_messages)} total messages to {path}")
+        logging.info(f"[DRY RUN] Would save {len(all_messages)} total messages to {path}")
     return list(all_messages)
 
 def log_message_sample(msg):
@@ -447,7 +501,7 @@ def log_message_sample(msg):
     dt = datetime.fromtimestamp(ts)
     text = msg.get('text', '')
     words = ' '.join(text.split()[:10])
-    print(f"  {dt}: {words}")
+    logging.info(f"  {dt}: {words}")
 
 def fetch_full_history(channel_id, channel_name):
     messages = []
@@ -457,14 +511,14 @@ def fetch_full_history(channel_id, channel_name):
     path = os.path.join(channel_dir, "messages.json")
     os.makedirs(channel_dir, exist_ok=True)
     while True:
-        print(f"Fetching ALL messages for {channel_name} (cursor: {cursor if cursor else 'start'})")
+        logging.info(f"Fetching ALL messages for {channel_name} (cursor: {cursor if cursor else 'start'})")
         start_time = time.time()
         response = robust_api_call(client.conversations_history, channel=channel_id, limit=1000, cursor=cursor)
         if not response:
             break
         batch = response['messages']
         if not batch:
-            print(f"No more messages in batch for {channel_name}.")
+            logging.info(f"No more messages in batch for {channel_name}.")
             break
         batch_ts = [msg['ts'] for msg in batch]
         unique_timestamps.update(batch_ts)
