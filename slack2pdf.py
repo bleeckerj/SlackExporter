@@ -14,7 +14,7 @@ import qrcode
 from reportlab.lib.utils import ImageReader
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 PAGE_SIZES = {
         'A5': (5.83, 8.27),
@@ -41,7 +41,7 @@ PAGE_SIZES = {
 
 messages_file = 'omata-developers/messages.json'
 users_file = 'users.json'
-avatars_dir = 'avatars_40x40'
+avatars_dir = 'avatars'
 
 MARGIN = inch
 AVATAR_SIZE = 0.4 * inch
