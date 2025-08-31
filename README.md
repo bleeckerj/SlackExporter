@@ -1,4 +1,4 @@
-# SlackExporterForOmata
+# SlackExporter
 
 A robust toolkit for exporting Slack workspace data, including messages, files, user metadata, and avatars. Designed for administrators who need to archive or analyze Slack content.
 

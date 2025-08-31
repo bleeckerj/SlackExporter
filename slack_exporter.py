@@ -247,9 +247,45 @@ def download_file(file_info, token, output_dir):
     orig_name = file_info.get('name') or file_info.get('id') or "file"
     safe_name = re.sub(r'[\\/*?:"<>|]', "_", orig_name)
 
-    # preferred candidate: direct save in output_dir
+    # Get file timestamp for comparison
+    file_ts = str(file_info.get('created') or file_info.get('timestamp') or "")
+    file_id = file_info.get('id') or safe_name
+
+    # Always check manifest for duplicates, regardless of file existence
+    manifest_path = os.path.join(os.path.dirname(output_dir), "manifest.json")
+    if os.path.exists(manifest_path):
+        with open(manifest_path, "r") as mf:
+            try:
+                manifest = json.load(mf)
+            except Exception:
+                manifest = {}
+        for entry in manifest.values():
+            # Compare id, name, and timestamp
+            if (
+                entry.get("original_name") == orig_name and
+                str(entry.get("ts")) == file_ts and
+                entry.get("id", None) == file_id
+            ):
+                logging.info(f"IGNORED VIA MANIFEST duplicate file: {orig_name} with ts {file_ts} and id {file_id} in {output_dir}")
+                return None
+
     candidate_path = os.path.join(output_dir, safe_name)
 
+    # Check for duplicate: same name and same timestamp
+    if os.path.exists(candidate_path):
+        # Try to read manifest for timestamp comparison
+        manifest_path = os.path.join(os.path.dirname(output_dir), "manifest.json")
+        if os.path.exists(manifest_path):
+            with open(manifest_path, "r") as mf:
+                try:
+                    manifest = json.load(mf)
+                except Exception:
+                    manifest = {}
+            for entry in manifest.values():
+                # Compare both name and timestamp
+                if entry.get("original_name") == orig_name and str(entry.get("ts")) == file_ts:
+                    logging.info(f"IGNORED duplicate file: {orig_name} with ts {file_ts} in {output_dir}")
+                    return None
     # If no collision, save directly in output_dir
     if not os.path.exists(candidate_path):
         target_dir = output_dir
@@ -268,8 +304,20 @@ def download_file(file_info, token, output_dir):
         target_dir = os.path.join(output_dir, subdir_name)
         os.makedirs(target_dir, exist_ok=True)
         final_path = os.path.join(target_dir, safe_name)
-        # If collision still exists in subdir, suffix numerically
+        # Check for duplicate in subdir: same name and same timestamp
+        manifest_path = os.path.join(os.path.dirname(output_dir), "manifest.json")
         if os.path.exists(final_path):
+            if os.path.exists(manifest_path):
+                with open(manifest_path, "r") as mf:
+                    try:
+                        manifest = json.load(mf)
+                    except Exception:
+                        manifest = {}
+                for entry in manifest.values():
+                    if entry.get("original_name") == orig_name and str(entry.get("ts")) == file_ts and entry.get("dir") == os.path.relpath(target_dir, output_dir):
+                        logging.info(f"IGNORED duplicate file in subdir: {orig_name} with ts {file_ts} in {target_dir}")
+                        return None
+            # If collision still exists in subdir, suffix numerically
             base, ext = os.path.splitext(safe_name)
             i = 1
             while True:
@@ -304,7 +352,8 @@ def download_file(file_info, token, output_dir):
                     "saved_path": os.path.relpath(final_path, output_dir),
                     "original_name": orig_name,
                     "dir": os.path.relpath(target_dir, output_dir),
-                    "ts": file_info.get('created') or file_info.get('timestamp') or None
+                    "ts": file_info.get('created') or file_info.get('timestamp') or None,
+                    "id": file_id
                 }
                 with open(manifest_path, "w") as mf:
                     json.dump(manifest, mf, indent=2)
