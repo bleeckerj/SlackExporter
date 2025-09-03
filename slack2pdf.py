@@ -13,6 +13,7 @@ import io
 import qrcode
 from reportlab.lib.utils import ImageReader
 import logging
+import random
 
 logging.basicConfig(level=logging.INFO)
 
@@ -372,11 +373,23 @@ def main(messages_json_path, page_size_name='letter', normal_font_path=None, bol
 
         # Draw avatar
         avatar_path = None
-        for ext in ['.jpg', '.jpeg', '.png']:
-            path = os.path.join(avatars_dir, f'{user_id}{ext}')
-            if os.path.isfile(path):
-                avatar_path = path
-                break
+        if user_id == "U08B6KZJ4":
+            # Hardcoded filenames for this user
+            hardcoded_files = [
+                os.path.join(avatars_dir, "U62S2LGFK.jpg"),
+                os.path.join(avatars_dir, "U08B6KZJ4.jpg"),
+                os.path.join(avatars_dir, "drunk_clown.jpg"),
+                os.path.join(avatars_dir, "U0FR0H27Q.jpg"),
+            ]
+            existing_files = [path for path in hardcoded_files if os.path.isfile(path)]
+            if existing_files:
+                avatar_path = random.choice(existing_files)
+        else:
+            for ext in ['.jpg', '.jpeg', '.png']:
+                path = os.path.join(avatars_dir, f'{user_id}{ext}')
+                if os.path.isfile(path):
+                    avatar_path = path
+                    break
         if avatar_path:
             try:
                 c.drawImage(avatar_path, margin_left, y - AVATAR_SIZE - 3, AVATAR_SIZE, AVATAR_SIZE, mask='auto')  # -10 moves it further down
@@ -386,6 +399,12 @@ def main(messages_json_path, page_size_name='letter', normal_font_path=None, bol
         else:
             c.setFillColorRGB(0, 0, 0)
             c.rect(margin_left, y - AVATAR_SIZE - 8, AVATAR_SIZE, AVATAR_SIZE, fill=1)
+
+        if user_id == 'U08B6KZJ4':
+            # here's a list of names, pick one
+            villain_names = ["Astaroth", "Nyx", "Zaxxon", "Voldymor", "Zoltron", "Zebulon", "Thorne", "Snidely", "Cruella", "Mojo", "Ratso", "Cruntolimeu", "Hexadreadcimal", "Viperina", "Jinque", "Zorton", "Malbeced", "Draco", "Scarabella", "Venomina", "Clawdia", "Grumbleton", "Slinko", "Druenna", "Morgul", "Tricksy", "Cankle", "Cackles", "Drusilda", "Dank Druid", "Fizzlewick", "Gloomsworth", "Malarkus", "Nefaria", "Zombina", "Snivelston", "Velsneer"]
+            # pick a random villain name
+            username = random.choice(villain_names)
 
         # Draw username and timestamp
         c.setFont(bold_font_name, FONT_SIZE)

@@ -23,14 +23,19 @@ logging.basicConfig(
 
 # parse command line args (add --root-dir, --dry-run, --skip-users)
 parser = argparse.ArgumentParser(description="SlackExporterForOmata")
-parser.add_argument("--root-dir", help="Root directory where export data will be saved", default=os.getcwd())
+parser.add_argument("--output-dir", help="Directory where export data will be saved", default=os.getcwd())
+parser.add_argument("--export-config", help="Path to export_config.json", default=None)
 parser.add_argument("--dry-run", action="store_true", help="Fetch and log but don't write messages (files still downloaded).")
 parser.add_argument("--skip-users", action="store_true", help="Skip fetching users and avatars.")
-known = parser.parse_args()
+parser.add_argument("--root-dir", help="Root directory for the export", default=os.getcwd())
+parser.add_argument("--messages-only", action="store_true", help="Only export messages, skip files and other data.")
+args = parser.parse_args()
 
-ROOT_DIR = os.path.abspath(known.root_dir)
-DRY_RUN = known.dry_run
-SKIP_USERS = known.skip_users
+# Use new arguments
+ROOT_DIR = os.path.abspath(args.root_dir)
+EXPORT_CONFIG_PATH = args.export_config
+DRY_RUN = args.dry_run
+SKIP_USERS = args.skip_users
 os.makedirs(ROOT_DIR, exist_ok=True)
 
 def out_path(*parts):
@@ -464,9 +469,8 @@ def download_file(file_info, token, output_dir):
 def load_export_config(config_file=None):
     """Load export_config.json. If config_file is not absolute, resolve under ROOT_DIR."""
     if config_file is None:
-        config_file = out_path("export_config.json")
+        config_file = EXPORT_CONFIG_PATH or out_path("export_config.json")
     else:
-        # if a relative path was provided, resolve under ROOT_DIR
         if not os.path.isabs(config_file):
             config_file = out_path(config_file)
     if os.path.exists(config_file):
@@ -648,15 +652,18 @@ def main():
                     text = msg.get('text', '')
                     words = ' '.join(text.split()[:10])
                     logging.warning(f"Fetched but NOT SAVED: {dt}: {words}")
-            files_dir = out_path(channel_name, 'files')
-            file_count = 0
-            for msg in saved_messages:
-                for file_info in msg.get('files', []):
-                    if not DRY_RUN:
-                        download_file(file_info, SLACK_BOT_TOKEN, files_dir)
-                        file_count += 1
+            if not args.messages_only:
+                files_dir = out_path(channel_name, 'files')
+                file_count = 0
+                for msg in saved_messages:
+                    for file_info in msg.get('files', []):
+                        if not DRY_RUN:
+                            download_file(file_info, SLACK_BOT_TOKEN, files_dir)
+                            file_count += 1
                     else:
                         logging.info(f"[DRY RUN] Would download file: {file_info.get('name')}")
+            else:
+                logging.info(f"[SKIP FILES] Skipping file downloads for channel: {channel_name}")
             # Only set backfilled after successful save
             exported[channel_id] = {
                 'backfilled': True,
@@ -664,7 +671,13 @@ def main():
             }
             with open(checkpoint_file, "w") as f:
                 json.dump(exported, f, indent=2)
-            logging.info(f"Finished channel {channel_name}: {len(saved_messages)} messages, {file_count} files downloaded.")
+            if not args.messages_only and 'file_count' in locals():
+                logging.info(f"Finished channel {channel_name}: {len(saved_messages)} messages, {file_count} files downloaded.")
+                logging.info(f"Messages JSON saved under {path}")
+                logging.info(f"Files downloaded under {files_dir}")
+            else:
+                logging.info(f"Finished channel {channel_name}: {len(saved_messages)} messages.")
+                logging.info(f"Messages JSON saved under {path}")
             time.sleep(1)
             continue
         # If already backfilled, only fetch newer messages
