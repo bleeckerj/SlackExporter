@@ -19,6 +19,7 @@ logging.basicConfig(level=logging.INFO)
 
 PAGE_SIZES = {
         'A5': (5.83, 8.27),
+        'A5_FULLBLEED': (5.955, 8.395),
         'A4': (8.27, 11.69),
         'A3': (11.69, 16.54),
         'A2': (16.54, 23.39),
@@ -29,7 +30,9 @@ PAGE_SIZES = {
         'LEGAL': (8.5, 14),
         'TABLOID': (11, 17),
         'DIGEST': (5.5, 8.5),         # Digest size
+        'DIGEST_FULLBLEED': (5.625, 8.625),
         'POCKETBOOK': (4.25, 6.87),   # PocketBook size
+        'POCKETBOOK_FULLBLEED': (4.375, 6.995),
         # Playing card sizes (in inches, rounded to 2 decimals)
         'POKER': (2.48, 3.46),        # 63x88mm
         'BRIDGE': (2.24, 3.46),       # 57x88mm
